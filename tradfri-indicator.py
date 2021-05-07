@@ -5,7 +5,6 @@ import threading
 import time
 import typing as t
 import uuid
-import re
 
 import gi
 from pytradfri import Gateway
@@ -27,8 +26,6 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIG_FILE = os.path.join(GLib.get_user_config_dir(), "tradfri_standalone_psk.conf")
 TIMEOUT = 5
 
-IGNORE_SCENES = re.compile("EDIT TO IGNORE SOME SCENES")
-
 
 class TradfriIndicator:
     indicator: AppIndicator3.Indicator
@@ -42,26 +39,42 @@ class TradfriIndicator:
     groups: t.Dict[int, Group]
     """Map from Group ID to Groups"""
 
-    _menu_semaphore: threading.BoundedSemaphore
-    """Ensure that the menu updating code only runs in one thread"""
+    _need_menu_update: threading.Condition
+    """Ensure that menu updates are properly registered an not multiple threads """
+
+    ignored_scenes: t.List[str]
+    ignored_rooms: t.List[str]
 
     def __init__(self) -> None:
-        self._menu_semaphore = threading.BoundedSemaphore(1)
-        with self._menu_semaphore:
-            self.indicator = AppIndicator3.Indicator.new(
-                "tradfriindicator",
-                os.path.join(SCRIPT_DIR, "lightbulb-fill.svg"),
-                AppIndicator3.IndicatorCategory.HARDWARE,
-            )
-            self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
-            self.indicator.set_menu(self._build_menu())
+        self.ignored_scenes = []
+        self.ignored_rooms = []
+        self._need_menu_update = threading.Condition()
+        # Block menu updating during initialization
+        self._need_menu_update.acquire()
+        self.indicator = AppIndicator3.Indicator.new(
+            "tradfriindicator",
+            os.path.join(SCRIPT_DIR, "lightbulb-fill.svg"),
+            AppIndicator3.IndicatorCategory.HARDWARE,
+        )
+        self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+        self.indicator.set_menu(self._build_menu())
 
-            self._load_config()
-            self._load_devices_and_rooms()
-            self._update_menu()
+        self._load_config()
+        self._load_devices_and_rooms()
+
+        threading.Thread(
+            target=self._update_menu, name="Update Menu", daemon=True
+        ).start()
+        # Trigger a menu update
+        self._need_menu_update.release()
+        self._set_needs_menu_update()
 
     def _load_config(self) -> None:
-        conf = load_json(CONFIG_FILE)
+        c = load_json(CONFIG_FILE)
+        if isinstance(c, dict):
+            conf: t.Dict[str, t.Any] = c
+        else:
+            conf = {}
 
         parser = argparse.ArgumentParser()
         parser.add_argument(
@@ -112,32 +125,40 @@ class TradfriIndicator:
                     "-K flag."
                 ) from e
 
+        self.ignored_scenes = conf[args.host].get("ignored_scenes", [])
+        self.ignored_rooms = conf[args.host].get("ignored_rooms", [])
+
     def _load_devices_and_rooms(self) -> None:
-        gateway = Gateway()
-
-        devices_command = gateway.get_devices()
-        devices_commands = self._execute_api(devices_command)
-        devices = self._execute_api(devices_commands)
-
+        self.moods = {}
+        self.groups = {}
         self.lights = {}
-        for dev in devices:
-            if dev.has_light_control:
-                self.lights[dev.id] = dev.light_control.lights[0]
-                self._observe(dev)
+
+        gateway = Gateway()
+        needed_lights = set()
 
         moods_command = gateway.get_moods(SUPERGROUP)
         mood_commands = self._execute_api(moods_command)
         moods = self._execute_api(mood_commands)
-        self.moods = {}
         for mood in moods:
             self.moods[mood.id] = mood
 
         groups_command = gateway.get_groups()
         group_commands = self._execute_api(groups_command)
         groups = self._execute_api(group_commands)
-        self.groups = {}
         for group in groups:
             self.groups[group.id] = group
+            for device_id in group.member_ids:
+                needed_lights.add(device_id)
+
+        devices_command = gateway.get_devices()
+        devices_commands = self._execute_api(devices_command)
+        devices = self._execute_api(devices_commands)
+
+        # Observe those lights which are part of the rooms we are interested in
+        for dev in devices:
+            if dev.has_light_control and dev.id in needed_lights:
+                self.lights[dev.id] = dev.light_control.lights[0]
+                self._observe(dev)
 
     def _build_menu(self) -> Gtk.Menu:
         menu = Gtk.Menu()
@@ -145,50 +166,57 @@ class TradfriIndicator:
         menu.show_all()
         return menu
 
+    def _set_needs_menu_update(self) -> None:
+        with self._need_menu_update:
+            self._need_menu_update.notify_all()
+
     def _update_menu(self) -> None:
-        def update() -> None:
-            with self._menu_semaphore:
-                menu = Gtk.Menu()
+        self._need_menu_update.acquire()
+        while True:
+            self._need_menu_update.wait()
 
-                menu_scenes = Gtk.MenuItem.new_with_label("Scenes")
-                menu_scenes.set_sensitive(False)
-                menu.append(menu_scenes)
+            menu = Gtk.Menu()
 
-                moods = list(self.moods.values())
-                moods.sort(key=lambda m: m.name)
-                for mood in moods:
-                    if IGNORE_SCENES.match(mood.name):
-                        continue
+            menu_scenes = Gtk.MenuItem.new_with_label("Scenes")
+            menu_scenes.set_sensitive(False)
+            menu.append(menu_scenes)
 
-                    m = Gtk.MenuItem.new_with_label(mood.name)
-                    m.connect("activate", self._activate_mood, mood)
-                    menu.append(m)
+            moods = list(self.moods.values())
+            moods.sort(key=lambda m: m.name)
+            for mood in moods:
+                if mood.name in self.ignored_scenes:
+                    continue
 
-                menu.append(Gtk.SeparatorMenuItem())
-                menu_rooms = Gtk.MenuItem.new_with_label("Rooms")
-                menu_rooms.set_sensitive(False)
-                menu.append(menu_rooms)
+                m = Gtk.MenuItem.new_with_label(mood.name)
+                m.connect("activate", self._activate_mood, mood)
+                menu.append(m)
 
-                groups = list(g for g in self.groups.values() if g.id != SUPERGROUP)
-                groups.sort(key=lambda g: g.name)
-                for group in groups:
-                    m = Gtk.CheckMenuItem.new_with_label(group.name)
-                    is_active, is_consistent = self._get_group_state(group)
-                    m.set_active(is_active)
-                    m.set_inconsistent(not is_consistent)
-                    m.connect("activate", self._activate_group, group)
-                    menu.append(m)
+            menu.append(Gtk.SeparatorMenuItem())
+            menu_rooms = Gtk.MenuItem.new_with_label("Rooms")
+            menu_rooms.set_sensitive(False)
+            menu.append(menu_rooms)
 
-                menu.append(Gtk.SeparatorMenuItem())
-                menu_quit = Gtk.MenuItem.new_with_label("Quit")
-                menu_quit.connect("activate", self._quit)
-                menu.append(menu_quit)
+            groups = list(g for g in self.groups.values() if g.id != SUPERGROUP)
+            groups.sort(key=lambda g: g.name)
+            for group in groups:
+                if group.name in self.ignored_rooms:
+                    continue
 
-                menu.show_all()
-                # Schedule the new menu to be set for the indicator
-                GLib.idle_add(self.indicator.set_menu, menu)
+                m = Gtk.CheckMenuItem.new_with_label(group.name)
+                is_active, is_consistent = self._get_group_state(group)
+                m.set_active(is_active)
+                m.set_inconsistent(not is_consistent)
+                m.connect("activate", self._activate_group, group)
+                menu.append(m)
 
-        threading.Thread(target=update, name="Update Menu", daemon=True).start()
+            menu.append(Gtk.SeparatorMenuItem())
+            menu_quit = Gtk.MenuItem.new_with_label("Quit")
+            menu_quit.connect("activate", self._quit)
+            menu.append(menu_quit)
+
+            menu.show_all()
+            # Schedule the new menu to be set for the indicator
+            GLib.idle_add(self.indicator.set_menu, menu)
 
     def _get_group_state(self, group: Group) -> t.Tuple[bool, bool]:
         """
@@ -211,7 +239,7 @@ class TradfriIndicator:
             light = updated_device.light_control.lights[0]
             print("Got update for", updated_device.name)
             self.lights[updated_device.id] = light
-            self._update_menu()
+            self._set_needs_menu_update()
 
         def err_callback(err: t.Any) -> None:
             if str(err) != "Observing stopped.":
