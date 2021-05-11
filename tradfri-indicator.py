@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import argparse
 import os
 import threading
 import time
@@ -16,6 +15,7 @@ from pytradfri.group import Group
 from pytradfri.mood import Mood
 from pytradfri.util import load_json, save_json
 from ratelimit import limits, sleep_and_retry
+from zeroconf import ServiceBrowser, Zeroconf, ServiceInfo, ServiceListener
 
 gi.require_version("AppIndicator3", "0.1")
 
@@ -25,6 +25,25 @@ SUPERGROUP = 131073
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIG_FILE = os.path.join(GLib.get_user_config_dir(), "tradfri_standalone_psk.conf")
 TIMEOUT = 5
+
+
+class ZeroconfListener(ServiceListener):
+    discovered_gateways: t.List[ServiceInfo]
+
+    def __init__(self) -> None:
+        super()
+        self.discovered_gateways = []
+
+    def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        info = zc.get_service_info(type_, name)
+        if info and info.name == "TRADFRI gateway._hap._tcp.local.":
+            self.discovered_gateways.append(info)
+
+    def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        pass
+
+    def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        pass
 
 
 class TradfriIndicator:
@@ -76,20 +95,35 @@ class TradfriIndicator:
         else:
             conf = {}
 
-        parser = argparse.ArgumentParser()
-        parser.add_argument(
-            "host", metavar="IP", type=str, help="IP Address of your Tradfri gateway"
-        )
-        parser.add_argument(
-            "-K",
-            "--key",
-            dest="key",
-            required=False,
-            help="Security code found on your Tradfri gateway",
-        )
-        args = parser.parse_args()
+        host = None
+        host_name = None
 
-        if args.host not in conf and args.key is None:
+        # Use zeroconf for finding the gateway
+        zeroconf = Zeroconf()
+        try:
+            listener = ZeroconfListener()
+            _browser = ServiceBrowser(zeroconf, "_hap._tcp.local.", listener)
+
+            time.sleep(2)
+            if listener.discovered_gateways:
+                host = listener.discovered_gateways[0].parsed_addresses()[0]
+                host_name = listener.discovered_gateways[0].server
+                print(f"Connecting to {host_name} at {host}")
+        finally:
+            zeroconf.close()
+
+        if host is None or host_name is None:
+            raise PytradfriError(
+                "Could not find Tradfri gateway and no IP address was provided"
+            )
+
+        try:
+            identity = conf[host_name].get("identity")
+            psk = conf[host_name].get("key")
+            self.api_factory = APIFactory(
+                host=host, psk_id=identity, psk=psk, timeout=TIMEOUT
+            )
+        except KeyError as kerr:
             print(
                 "Please provide the 'Security Code' on the back of your "
                 "Tradfri gateway:",
@@ -97,36 +131,18 @@ class TradfriIndicator:
             )
             key = input().strip()
             if len(key) != 16:
-                raise PytradfriError("Invalid 'Security Code' provided.")
-            args.key = key
+                raise PytradfriError("Invalid 'Security Code' provided.") from kerr
 
-        try:
-            identity = conf[args.host].get("identity")
-            psk = conf[args.host].get("key")
-            self.api_factory = APIFactory(
-                host=args.host, psk_id=identity, psk=psk, timeout=TIMEOUT
-            )
-        except KeyError:
             identity = uuid.uuid4().hex
-            self.api_factory = APIFactory(
-                host=args.host, psk_id=identity, timeout=TIMEOUT
-            )
+            self.api_factory = APIFactory(host=host, psk_id=identity, timeout=TIMEOUT)
+            psk = self.api_factory.generate_psk(key)
+            print("Generated PSK: ", psk)
 
-            try:
-                psk = self.api_factory.generate_psk(args.key)
-                print("Generated PSK: ", psk)
+            conf[host_name] = {"identity": identity, "key": psk}
+            save_json(CONFIG_FILE, conf)
 
-                conf[args.host] = {"identity": identity, "key": psk}
-                save_json(CONFIG_FILE, conf)
-            except AttributeError as e:
-                raise PytradfriError(
-                    "Please provide the 'Security Code' on the "
-                    "back of your Tradfri gateway using the "
-                    "-K flag."
-                ) from e
-
-        self.ignored_scenes = conf[args.host].get("ignored_scenes", [])
-        self.ignored_rooms = conf[args.host].get("ignored_rooms", [])
+        self.ignored_scenes = conf[host_name].get("ignored_scenes", [])
+        self.ignored_rooms = conf[host_name].get("ignored_rooms", [])
 
     def _load_devices_and_rooms(self) -> None:
         self.moods = {}
@@ -223,7 +239,7 @@ class TradfriIndicator:
         Get the state of the group. The first bool represents if any lamp is active. The second bool represents if all lights in the group have the same state.
         """
         light_states = [
-            self.lights.get(device_id).state
+            self.lights.get(device_id).state  # type:ignore
             for device_id in group.member_ids
             if self.lights.get(device_id) is not None
         ]
