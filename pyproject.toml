@@ -1,0 +1,18 @@
+[tool.poetry]
+authors = ["Jonas Bushart <jonas@bushart.org>"]
+description = "AppIndicator to control Tradfri Lamps"
+name = "tradfri-indicator"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+pytradfri = "^7.0.6"
+ratelimit = "^2.2.1"
+zeroconf = "^0.30.0"
+PyGObject = "^3.40.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0"]

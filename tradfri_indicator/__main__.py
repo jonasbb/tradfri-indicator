@@ -104,7 +104,7 @@ class TradfriIndicator:
             listener = ZeroconfListener()
             _browser = ServiceBrowser(zeroconf, "_hap._tcp.local.", listener)
 
-            time.sleep(2)
+            time.sleep(5)
             if listener.discovered_gateways:
                 host = listener.discovered_gateways[0].parsed_addresses()[0]
                 host_name = listener.discovered_gateways[0].server
