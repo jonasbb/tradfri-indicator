@@ -1,83 +1,50 @@
 [[package]]
-name = "ifaddr"
-version = "0.1.7"
-description = "Cross-platform network interface and IP address enumeration library"
 category = "main"
+description = "Cross-platform network interface and IP address enumeration library"
+name = "ifaddr"
 optional = false
 python-versions = "*"
+version = "0.1.7"
 
 [[package]]
-name = "pycairo"
-version = "1.20.0"
-description = "Python interface for cairo"
 category = "main"
-optional = false
-python-versions = ">=3.6, <4"
-
-[[package]]
-name = "pygobject"
-version = "3.40.1"
-description = "Python bindings for GObject Introspection"
-category = "main"
-optional = false
-python-versions = ">=3.6, <4"
-
-[package.dependencies]
-pycairo = ">=1.16.0"
-
-[[package]]
-name = "pytradfri"
-version = "7.0.6"
 description = "IKEA Trådfri/Tradfri API. Control and observe your lights from Python."
-category = "main"
+name = "pytradfri"
 optional = false
 python-versions = ">=3.7"
+version = "7.0.6"
 
 [package.extras]
-async = ["aiocoap (==0.4b3)", "DTLSSocket (==0.1.12)"]
+async = ["aiocoap (0.4b3)", "DTLSSocket (0.1.12)"]
 
 [[package]]
-name = "ratelimit"
-version = "2.2.1"
+category = "main"
 description = "API rate limit decorator"
-category = "main"
+name = "ratelimit"
 optional = false
 python-versions = "*"
+version = "2.2.1"
 
 [[package]]
-name = "zeroconf"
-version = "0.30.0"
-description = "Pure Python Multicast DNS Service Discovery Library (Bonjour/Avahi compatible)"
 category = "main"
+description = "Pure Python Multicast DNS Service Discovery Library (Bonjour/Avahi compatible)"
+name = "zeroconf"
 optional = false
 python-versions = "*"
+version = "0.30.0"
 
 [package.dependencies]
 ifaddr = ">=0.1.7"
 
 [metadata]
-lock-version = "1.1"
+content-hash = "b4fd80004e502be469c686b8f3adb10c1f42d663909bd078715eea5f507f55d4"
+lock-version = "1.0"
 python-versions = "^3.7"
-content-hash = "f4ac328949c28df296afe6c8fdb9462704bd3ed3cdf8a0a8defadba8673951df"
 
 [metadata.files]
 ifaddr = [
     {file = "ifaddr-0.1.7-py2.py3-none-any.whl", hash = "sha256:d1f603952f0a71c9ab4e705754511e4e03b02565bc4cec7188ad6415ff534cd3"},
     {file = "ifaddr-0.1.7.tar.gz", hash = "sha256:1f9e8a6ca6f16db5a37d3356f07b6e52344f6f9f7e806d618537731669eb1a94"},
-]
-pycairo = [
-    {file = "pycairo-1.20.0-cp36-cp36m-win32.whl", hash = "sha256:e5a3433690c473e073a9917dc8f1fc7dc8b9af7b201bf372894b8ad70d960c6d"},
-    {file = "pycairo-1.20.0-cp36-cp36m-win_amd64.whl", hash = "sha256:a942614923b88ae75c794506d5c426fba9c46a055d3fdd3b8db7046b75c079cc"},
-    {file = "pycairo-1.20.0-cp37-cp37m-win32.whl", hash = "sha256:8cfa9578b745fb9cf2915ec580c2c50ebc2da00eac2cf4c4b54b63aa19da4b77"},
-    {file = "pycairo-1.20.0-cp37-cp37m-win_amd64.whl", hash = "sha256:273a33c56aba724ec42fe1d8f94c86c2e2660c1277470be9b04e5113d7c5b72d"},
-    {file = "pycairo-1.20.0-cp38-cp38-win32.whl", hash = "sha256:2088100a099c09c5e90bf247409ce6c98f51766b53bd13f96d6aac7addaa3e66"},
-    {file = "pycairo-1.20.0-cp38-cp38-win_amd64.whl", hash = "sha256:ceb1edcbeb48dabd5fbbdff2e4b429aa88ddc493d6ebafe78d94b050ac0749e2"},
-    {file = "pycairo-1.20.0-cp39-cp39-win32.whl", hash = "sha256:57a768f4edc8a9890d98070dd473a812ac3d046cef4bc1c817d68024dab9a9b4"},
-    {file = "pycairo-1.20.0-cp39-cp39-win_amd64.whl", hash = "sha256:57166119e424d71eccdba6b318bd731bdabd17188e2ba10d4f315f7bf16ace3f"},
-    {file = "pycairo-1.20.0.tar.gz", hash = "sha256:5695a10cb7f9ae0d01f665b56602a845b0a8cb17e2123bfece10c2e58552468c"},
-]
-pygobject = [
-    {file = "PyGObject-3.40.1.tar.gz", hash = "sha256:6fb599aa59ceb9dd05fafb0d72b3862943e7d5e85c8ef6c74856bc6d4321cbab"},
 ]
 pytradfri = [
     {file = "pytradfri-7.0.6-py3-none-any.whl", hash = "sha256:84b8eee686e4102bdfedb74352b5d4097508428936d96643d5880768aed95008"},

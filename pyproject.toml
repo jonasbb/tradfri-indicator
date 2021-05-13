@@ -9,7 +9,6 @@ python = "^3.7"
 pytradfri = "^7.0.6"
 ratelimit = "^2.2.1"
 zeroconf = "^0.30.0"
-PyGObject = "^3.40.1"
 
 [tool.poetry.dev-dependencies]
 
