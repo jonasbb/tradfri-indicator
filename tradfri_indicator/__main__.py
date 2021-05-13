@@ -15,7 +15,7 @@ from pytradfri.group import Group
 from pytradfri.mood import Mood
 from pytradfri.util import load_json, save_json
 from ratelimit import limits, sleep_and_retry
-from zeroconf import ServiceBrowser, Zeroconf, ServiceInfo, ServiceListener
+from zeroconf import ServiceBrowser, ServiceInfo, ServiceListener, Zeroconf
 
 gi.require_version("AppIndicator3", "0.1")
 
@@ -247,8 +247,7 @@ class TradfriIndicator:
             return (True, True)
         elif any(light_states):
             return (True, False)
-        else:
-            return (False, True)
+        return (False, True)
 
     def _observe(self, device: Device) -> None:
         def callback(updated_device: Device) -> None:
@@ -287,13 +286,10 @@ class TradfriIndicator:
         print("Activate Group", group.name)
         self._execute_api(group.set_state(menu_item.get_active()))
 
-    def run(self) -> None:
-        Gtk.main()
-
     def _quit(self, _menu_item: Gtk.MenuItem) -> None:
         Gtk.main_quit()
 
 
 if __name__ == "__main__":
     tradfri_indicator = TradfriIndicator()
-    tradfri_indicator.run()
+    Gtk.main()
