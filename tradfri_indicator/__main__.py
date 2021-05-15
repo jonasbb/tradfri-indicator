@@ -19,7 +19,11 @@ from zeroconf import ServiceBrowser, ServiceInfo, ServiceListener, Zeroconf
 
 gi.require_version("AppIndicator3", "0.1")
 
-from gi.repository import AppIndicator3, GLib, Gtk  # type: ignore
+from gi.repository import (
+    AppIndicator3,  # pyright: reportGeneralTypeIssues=false
+    GLib,  # pylance: reportGeneralTypeIssues=false
+    Gtk,  # pylance: reportGeneralTypeIssues=false
+)
 
 SUPERGROUP = 131073
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -102,7 +106,7 @@ class TradfriIndicator:
         zeroconf = Zeroconf()
         try:
             listener = ZeroconfListener()
-            _browser = ServiceBrowser(zeroconf, "_hap._tcp.local.", listener)
+            ServiceBrowser(zeroconf, "_hap._tcp.local.", listener)
 
             time.sleep(5)
             if listener.discovered_gateways:
