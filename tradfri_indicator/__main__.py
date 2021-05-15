@@ -19,11 +19,9 @@ from zeroconf import ServiceBrowser, ServiceInfo, ServiceListener, Zeroconf
 
 gi.require_version("AppIndicator3", "0.1")
 
-from gi.repository import (
-    AppIndicator3,  # pyright: reportGeneralTypeIssues=false
-    GLib,  # pylance: reportGeneralTypeIssues=false
-    Gtk,  # pylance: reportGeneralTypeIssues=false
-)
+from gi.repository import AppIndicator3  # pyright: reportGeneralTypeIssues=false
+from gi.repository import GLib  # pylance: reportGeneralTypeIssues=false
+from gi.repository import Gtk  # pylance: reportGeneralTypeIssues=false
 
 SUPERGROUP = 131073
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
