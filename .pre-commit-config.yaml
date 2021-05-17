@@ -1,10 +1,10 @@
 repos:
-  - repo: https://github.com/ambv/black
+  - repo: https://github.com/psf/black
     rev: 21.5b1
     hooks:
       - id: black
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.4.0
+    rev: v4.0.1
     hooks:
       - id: check-ast
       - id: check-case-conflict
@@ -14,7 +14,7 @@ repos:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
-  - repo: https://github.com/timothycrosley/isort
+  - repo: https://github.com/PyCQA/isort
     rev: 5.8.0
     # https://github.com/python/black#how-black-wraps-lines
     hooks:
@@ -28,7 +28,7 @@ repos:
             "--line-width=88",
           ]
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.15.0
+    rev: v2.16.0
     hooks:
       - id: pyupgrade
         args: ["--py37-plus"]
