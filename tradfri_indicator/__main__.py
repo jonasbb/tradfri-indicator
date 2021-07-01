@@ -38,7 +38,7 @@ class ZeroconfListener(ServiceListener):
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         info = zc.get_service_info(type_, name)
-        if info and info.name == "TRADFRI gateway._hap._tcp.local.":
+        if info and info.server.startswith("TRADFRI-Gateway"):
             self.discovered_gateways.append(info)
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
@@ -104,9 +104,10 @@ class TradfriIndicator:
         zeroconf = Zeroconf()
         try:
             listener = ZeroconfListener()
-            ServiceBrowser(zeroconf, "_hap._tcp.local.", listener)
+            browser = ServiceBrowser(zeroconf, "_coap._udp.local.", listener)
 
             time.sleep(5)
+            browser.cancel()
             if listener.discovered_gateways:
                 host = listener.discovered_gateways[0].parsed_addresses()[0]
                 host_name = listener.discovered_gateways[0].server
