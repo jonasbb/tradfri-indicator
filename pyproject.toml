@@ -2,7 +2,7 @@
 authors = ["Jonas Bushart <jonas@bushart.org>"]
 description = "AppIndicator to control Tradfri Lamps"
 name = "tradfri-indicator"
-version = "0.1.0"
+version = "0.2.0"
 
 [tool.poetry.dependencies]
 python = "^3.10"
