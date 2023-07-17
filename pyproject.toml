@@ -6,9 +6,9 @@ version = "0.1.0"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-pytradfri = "^11.0.0"
+pytradfri = "^13.0.0"
 ratelimit = "^2.2.1"
-zeroconf = "^0.38.0"
+zeroconf = "^0.71.0"
 
 [tool.poetry.dev-dependencies]
 
