@@ -158,26 +158,29 @@ class TradfriIndicator:
         moods_command = gateway.get_moods(SUPERGROUP)
         mood_commands = self._execute_api(moods_command)
         moods = self._execute_api(mood_commands)
-        for mood in moods:
-            self.moods[mood.id] = mood
+        if moods is not None:
+            for mood in moods:
+                self.moods[mood.id] = mood
 
         groups_command = gateway.get_groups()
         group_commands = self._execute_api(groups_command)
         groups = self._execute_api(group_commands)
-        for group in groups:
-            self.groups[group.id] = group
-            for device_id in group.member_ids:
-                needed_lights.add(device_id)
+        if groups is not None:
+            for group in groups:
+                self.groups[group.id] = group
+                for device_id in group.member_ids:
+                    needed_lights.add(device_id)
 
         devices_command = gateway.get_devices()
         devices_commands = self._execute_api(devices_command)
         devices = self._execute_api(devices_commands)
 
         # Observe those lights which are part of the rooms we are interested in
-        for dev in devices:
-            if dev.has_light_control and dev.id in needed_lights:
-                self.lights[dev.id] = dev.light_control.lights[0]
-                self._observe(dev)
+        if devices is not None:
+            for dev in devices:
+                if dev.has_light_control and dev.id in needed_lights:
+                    self.lights[dev.id] = dev.light_control.lights[0]
+                    self._observe(dev)
 
     def _build_menu(self) -> Gtk.Menu:
         menu = Gtk.Menu()
@@ -254,7 +257,10 @@ class TradfriIndicator:
 
     def _observe(self, device: Device) -> None:
         def callback(updated_device: Device) -> None:
-            light = updated_device.light_control.lights[0]
+            light_control = updated_device.light_control
+            if light_control is None:
+                return
+            light = light_control.lights[0]
             print("Got update for", updated_device.name)
             self.lights[updated_device.id] = light
             self._set_needs_menu_update()
@@ -283,7 +289,8 @@ class TradfriIndicator:
         print("Activate Mood", mood.name)
         gateway = Gateway()
         supergroup = self._execute_api(gateway.get_group(SUPERGROUP))
-        self._execute_api(supergroup.activate_mood(mood.id))
+        if supergroup is not None:
+            self._execute_api(supergroup.activate_mood(mood.id))
 
     def _activate_group(self, menu_item: Gtk.MenuItem, group: Group) -> None:
         print("Activate Group", group.name)
